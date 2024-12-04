@@ -128,6 +128,7 @@ const LLMService = {
 5. 建设地点要明确具体所处位置
 6. 研发进度要根据项目实际进展情况估算进度值，尽量避免数值完全重复。
 7. 项目风险要评估具体所属情形，判断不同的优先级
+8. 资金流向分析需要包含三个层级：资金来源、一级科目、二级科目
 {
   "projectInfo": {
     "title": "项目名称",
@@ -161,9 +162,16 @@ const LLMService = {
   "financialData": {
     "flowDetails": [
       {
-        "source": "来源类别",
-        "target": "使用科目",
-        "amount": 1000
+        "source": "专项资金",
+        "primaryCategory": "设备购置",
+        "target": "研发设备",
+        "amount": 100.00
+      },
+      {
+        "source": "自筹资金",
+        "primaryCategory": "人员费用",
+        "target": "研发人员工资",
+        "amount": 50.12
       }
     ]
   }

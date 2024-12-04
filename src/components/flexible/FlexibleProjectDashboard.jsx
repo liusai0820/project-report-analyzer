@@ -1,9 +1,16 @@
 import React from 'react';
 import { Card } from '../ui/card';
 import FlexibleProgressCard from './FlexibleProgressCard';
-import FinancialSankey from './FinancialSankey';
+import FinancialFlowChart from './FinancialFlowChart';
 
 const FlexibleProjectDashboard = ({ data }) => {
+  // 获取当前季度
+  const getCurrentQuarter = () => {
+    const now = new Date();
+    const quarter = Math.floor((now.getMonth() + 3) / 3);
+    return `${now.getFullYear()}年第${quarter}季度`;
+  };
+
   const formatInvestment = (value) => {
     if (!value) return '未设置';
     return `总额 ${value} 万元（专项资金 ${Math.floor(value * 0.5)} 万元 + 自筹资金 ${Math.floor(value * 0.5)} 万元）`;
@@ -12,7 +19,7 @@ const FlexibleProjectDashboard = ({ data }) => {
   const renderHeader = () => (
     <div className="mb-8">
       <h1 className="text-3xl font-bold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">
-        {data.projectInfo.title}
+        {data.projectInfo.title} {getCurrentQuarter()}进展情况
       </h1>
     </div>
   );
@@ -92,10 +99,8 @@ const FlexibleProjectDashboard = ({ data }) => {
   const renderFinancial = () => (
     <Card className="mb-6">
       <div className="p-6">
-        <h2 className="text-xl font-bold mb-6">经费执行情况</h2>
-        <div className="h-96">
-          <FinancialSankey data={data.financialData} />
-        </div>
+        <h2 className="text-xl font-bold mb-6">经费使用情况</h2>
+        <FinancialFlowChart data={data.financialData} />
       </div>
     </Card>
   );
