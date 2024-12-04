@@ -2,11 +2,17 @@ import React from 'react';
 import { Card } from '../ui/card';
 import { Progress } from '../ui/progress';
 
-const FlexibleProgressCard = ({ 
-  data,
-  type = 'default',
-  className = ''
-}) => {
+const FlexibleProgressCard = ({ data, type = 'default', className = '' }) => {
+  if (!data) {
+    return (
+      <Card className={`w-full shadow-sm ${className}`}>
+        <div className="p-4">
+          <p className="text-gray-400 text-sm">暂无数据</p>
+        </div>
+      </Card>
+    );
+  }
+
   // 调试日志
   console.log('ProgressCard received data:', data, 'type:', type);
 
