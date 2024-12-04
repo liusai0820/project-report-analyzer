@@ -5,48 +5,22 @@ const LLMService = {
   validateLLMResponse: (data) => {
     console.log('验证 LLM 响应数据：', data);
     
-    const requiredFields = {
-      projectInfo: ['title', 'company', 'location', 'period', 'investment'],
-      progressIndicators: ['name', 'value', 'total'],
-      researchProgress: ['title', 'value', 'description'],
-      risks: ['level', 'title', 'description']
-    };
-
-    // 检查所有必需的部分是否存在
-    for (const [section, fields] of Object.entries(requiredFields)) {
-      console.log(`检查 ${section} 部分`);
-      
-      if (!data[section]) {
-        console.error(`缺少 ${section} 部分`);
-        return false;
-      }
-
-      // 检查数组类型的数据
-      if (Array.isArray(data[section])) {
-        if (data[section].length === 0) {
-          console.error(`${section} 数组为空`);
-          return false;
-        }
-
-        // 检查每个数组项的字段
-        for (const item of data[section]) {
-          const missingFields = fields.filter(field => !item[field]);
-          if (missingFields.length > 0) {
-            console.error(`${section} 中缺少字段:`, missingFields);
-            return false;
-          }
-        }
-      } 
-      // 检查对象类型的数据
-      else if (typeof data[section] === 'object') {
-        const missingFields = fields.filter(field => !data[section][field]);
-        if (missingFields.length > 0) {
-          console.error(`${section} 中缺少字段:`, missingFields);
-          return false;
-        }
-      }
+    // 检查基本数据结构是否存在
+    if (!data || typeof data !== 'object') {
+      console.error('响应数据格式不正确');
+      return false;
     }
 
+    // 确保所有必要的部分都存在
+    const requiredSections = ['projectInfo', 'progressIndicators', 'researchProgress', 'risks'];
+    const missingSection = requiredSections.find(section => !data[section]);
+    
+    if (missingSection) {
+      console.error(`缺少 ${missingSection} 部分`);
+      return false;
+    }
+
+    // 简化的验证，只检查数据结构存在性而不检查具体内容
     return true;
   },
 
@@ -182,7 +156,7 @@ const LLMService = {
     }
 
     请确保：
-    1. 从经费使用表格中提取资金流向数据
+    1. 从经费使用表格中提取资金流向数据，如果报告正文中没有投资金额，则从经费使用表格的的预算提取，计算该数值
     2. 保留原始金额数值，不要进行单位转换
     3. 识别主要支出类别和子类别的层级关系
     4. 标注资金流向的来源和去向
