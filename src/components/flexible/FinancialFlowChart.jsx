@@ -1,141 +1,207 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ResponsiveSankey } from '@nivo/sankey';
 import { Button } from "../ui/button";
-import { useState } from 'react';
 
 const FinancialFlowChart = ({ data }) => {
-  const [layout, setLayout] = useState('vertical');
+  const [fundType, setFundType] = useState('all');
   const [selectedNode, setSelectedNode] = useState(null);
 
   const { nodes, links } = useMemo(() => {
     if (!data?.flowDetails) return { nodes: [], links: [] };
 
-    // 按层级收集节点
     const levelMap = {
-      source: new Set(),    // 资金来源
-      primary: new Set(),   // 一级科目
-      secondary: new Set()  // 二级科目
+      source: new Set(),
+      primary: new Set(),
+      secondary: new Set()
     };
 
-    // 第一遍遍历，收集所有节点
-    data.flowDetails.forEach(flow => {
-      levelMap.source.add(flow.source);
-      levelMap.primary.add(flow.primaryCategory || '其他');
-      levelMap.secondary.add(flow.target);
+    const filteredFlows = data.flowDetails.filter(flow => {
+      if (fundType === 'all') return true;
+      if (fundType === 'special') return flow.source.includes('专项资金');
+      if (fundType === 'self') return flow.source.includes('自筹资金');
+      return true;
     });
 
-    // 创建节点数组，并为每个节点分配层级和颜色
+    filteredFlows.forEach(flow => {
+      if (flow.source) levelMap.source.add(flow.source);
+      if (flow.primaryCategory) levelMap.primary.add(flow.primaryCategory);
+      if (flow.target) levelMap.secondary.add(flow.target);
+    });
+
     const nodes = [
       ...Array.from(levelMap.source).map(id => ({
         id,
-        color: "hsl(210, 70%, 50%)",
         nodeColor: "hsl(210, 70%, 50%)",
         category: 'source'
       })),
       ...Array.from(levelMap.primary).map(id => ({
         id,
-        color: "hsl(180, 70%, 50%)",
         nodeColor: "hsl(180, 70%, 50%)",
         category: 'primary'
       })),
       ...Array.from(levelMap.secondary).map(id => ({
         id,
-        color: "hsl(150, 70%, 50%)",
         nodeColor: "hsl(150, 70%, 50%)",
         category: 'secondary'
       }))
     ];
 
-    // 创建链接并合并相同路径的金额
     const links = [];
-    data.flowDetails.forEach(flow => {
-      const primaryCategory = flow.primaryCategory || '其他';
-      const amount = parseFloat(flow.amount);
-      
-      // 添加资金来源到一级科目的链接
+    filteredFlows.forEach(flow => {
+      if (!flow.source || !flow.primaryCategory || !flow.target || !flow.amount) return;
+
       const sourceToPrimary = links.find(link => 
-        link.source === flow.source && link.target === primaryCategory
+        link.source === flow.source && link.target === flow.primaryCategory
       );
       
       if (sourceToPrimary) {
-        sourceToPrimary.value = parseFloat(sourceToPrimary.value) + amount;
+        sourceToPrimary.value += parseFloat(flow.amount) || 0;
       } else {
         links.push({
           source: flow.source,
-          target: primaryCategory,
-          value: amount,
-          gradientColor: "hsl(210, 70%, 50%)"
+          target: flow.primaryCategory,
+          value: parseFloat(flow.amount) || 0
         });
       }
 
-      // 添加一级科目到二级科目的链接
       const primaryToSecondary = links.find(link => 
-        link.source === primaryCategory && link.target === flow.target
+        link.source === flow.primaryCategory && link.target === flow.target
       );
       
       if (primaryToSecondary) {
-        primaryToSecondary.value = parseFloat(primaryToSecondary.value) + amount;
+        primaryToSecondary.value += parseFloat(flow.amount) || 0;
       } else {
         links.push({
-          source: primaryCategory,
+          source: flow.primaryCategory,
           target: flow.target,
-          value: amount,
-          gradientColor: "hsl(180, 70%, 50%)"
+          value: parseFloat(flow.amount) || 0
         });
       }
     });
 
-    // 对链接值进行四舍五入，保留两位小数
     links.forEach(link => {
       link.value = parseFloat(link.value.toFixed(2));
     });
 
-    return { nodes, links };
-  }, [data]);
+    return { 
+      nodes: nodes.filter(node => node.id), 
+      links: links.filter(link => 
+        link.source && 
+        link.target && 
+        typeof link.value === 'number' && 
+        !isNaN(link.value)
+      )
+    };
+  }, [data, fundType]);
 
-  if (!data || nodes.length === 0) {
-    return null;
-  }
+  const getFilteredData = () => {
+    if (!selectedNode || !nodes.length || !links.length) {
+      return { nodes, links };
+    }
 
-  const handleNodeClick = node => {
-    setSelectedNode(selectedNode?.id === node.id ? null : node);
+    try {
+      const relevantLinks = links.filter(link => 
+        link.source === selectedNode.id || link.target === selectedNode.id
+      );
+      
+      if (!relevantLinks.length) {
+        return { nodes, links };
+      }
+
+      const relevantNodeIds = new Set([
+        ...relevantLinks.map(link => link.source),
+        ...relevantLinks.map(link => link.target)
+      ]);
+
+      return {
+        nodes: nodes.filter(node => relevantNodeIds.has(node.id)),
+        links: relevantLinks
+      };
+    } catch (error) {
+      console.error('数据过滤错误:', error);
+      return { nodes, links };
+    }
   };
 
-  // 根据选中节点过滤链接
-  const getFilteredData = () => {
-    if (!selectedNode) return { nodes, links };
-
-    const relevantLinks = links.filter(link => 
-      link.source === selectedNode.id || link.target === selectedNode.id
-    );
+  const handleNodeClick = (node) => {
+    if (!node) return;
     
-    const relevantNodeIds = new Set([
-      ...relevantLinks.map(link => link.source),
-      ...relevantLinks.map(link => link.target)
-    ]);
-
-    const filteredNodes = nodes.filter(node => relevantNodeIds.has(node.id));
-
-    return { nodes: filteredNodes, links: relevantLinks };
+    try {
+      setSelectedNode(selectedNode?.id === node.id ? null : node);
+    } catch (error) {
+      console.error('节点点击处理错误:', error);
+      setSelectedNode(null);
+    }
   };
 
   const { nodes: displayNodes, links: displayLinks } = getFilteredData();
+
+  if (!displayNodes.length || !displayLinks.length) {
+    return (
+      <div className="w-full">
+        <div className="mb-4 flex gap-4">
+          <Button
+            onClick={() => setFundType('all')}
+            className={`${fundType === 'all' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
+          >
+            全部资金
+          </Button>
+          <Button
+            onClick={() => setFundType('special')}
+            className={`${fundType === 'special' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
+          >
+            专项资金
+          </Button>
+          <Button
+            onClick={() => setFundType('self')}
+            className={`${fundType === 'self' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
+          >
+            自筹资金
+          </Button>
+        </div>
+        <div className="h-[800px] flex items-center justify-center text-gray-500">
+          暂无资金流向数据
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
       <div className="mb-4 flex gap-4">
         <Button
-          onClick={() => setLayout(layout === 'horizontal' ? 'vertical' : 'horizontal')}
-          className="bg-blue-500 hover:bg-blue-600"
+          onClick={() => {
+            setFundType('all');
+            setSelectedNode(null);
+          }}
+          className={`${fundType === 'all' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
         >
-          切换布局: {layout === 'horizontal' ? '水平' : '垂直'}
+          全部资金
+        </Button>
+        <Button
+          onClick={() => {
+            setFundType('special');
+            setSelectedNode(null);
+          }}
+          className={`${fundType === 'special' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
+        >
+          专项资金
+        </Button>
+        <Button
+          onClick={() => {
+            setFundType('self');
+            setSelectedNode(null);
+          }}
+          className={`${fundType === 'self' ? 'bg-blue-600' : 'bg-gray-500'} hover:bg-blue-700`}
+        >
+          自筹资金
         </Button>
         {selectedNode && (
           <Button
             onClick={() => setSelectedNode(null)}
             variant="outline"
           >
-            清除筛选
+            返回总览
           </Button>
         )}
       </div>
@@ -144,7 +210,7 @@ const FinancialFlowChart = ({ data }) => {
           data={{ nodes: displayNodes, links: displayLinks }}
           margin={{ top: 40, right: 160, bottom: 40, left: 50 }}
           align="justify"
-          orientation={layout}
+          orientation="horizontal"
           nodeThickness={20}
           nodeSpacing={40}
           nodeBorderRadius={3}
@@ -156,8 +222,8 @@ const FinancialFlowChart = ({ data }) => {
           linkHoverOpacity={0.8}
           linkContract={3}
           enableLinkGradient={true}
-          labelPosition={layout === 'horizontal' ? 'outside' : 'inside'}
-          labelOrientation={layout === 'horizontal' ? 'vertical' : 'horizontal'}
+          labelPosition="inside"
+          labelOrientation="horizontal"
           labelPadding={16}
           animate={true}
           onClick={handleNodeClick}
