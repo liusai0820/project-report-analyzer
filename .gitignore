@@ -1,23 +1,54 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-
-# misc
-.DS_Store
+# .gitignore
+node_modules/
+.env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+build/
+dist/
+.DS_Store
+.vercel
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# README.md
+# Project Report Analyzer
+
+An AI-powered project report analysis tool that automatically generates visual dashboards from document content.
+
+## Features
+
+- Multi-format document support (PDF, Word, TXT)
+- Intelligent content extraction and structuring
+- Real-time data visualization
+- Interactive dashboard components
+
+## Setup
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Create `.env.local` file and add your API keys:
+   ```
+   REACT_APP_OPENROUTER_API_KEY=your_key_here
+   ```
+4. Run development server: `npm start`
+
+## Deployment
+
+This project is deployed on Vercel: [Add your URL here]
+
+## License
+
+MIT
+
+# .env.example
+REACT_APP_OPENROUTER_API_KEY=your_key_here
+
+# vercel.json
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
