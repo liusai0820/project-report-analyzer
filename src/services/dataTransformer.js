@@ -177,6 +177,17 @@ const DataTransformer = {
   },
 
   cleanData: (data) => {
+    if (data.financialData?.flowDetails) {
+      // 确保每个流向的 source、target 是唯一的
+      const seen = new Set();
+      data.financialData.flowDetails = data.financialData.flowDetails.filter(flow => {
+        const key = `${flow.source}-${flow.target}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    
     if (!data) return data;
 
     // 清理财务数据

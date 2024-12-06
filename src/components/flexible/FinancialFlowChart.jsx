@@ -8,13 +8,11 @@ const FinancialFlowChart = ({ data }) => {
 
   const { nodes, links } = useMemo(() => {
     if (!data?.flowDetails) return { nodes: [], links: [] };
-
-    const levelMap = {
-      source: new Set(),
-      primary: new Set(),
-      secondary: new Set()
-    };
-
+    
+    // 预处理确保所有 ID 唯一
+    const processNodeId = (id, category) => `${category}_${id}`;
+    
+    // 过滤数据
     const filteredFlows = data.flowDetails.filter(flow => {
       if (fundType === 'all') return true;
       if (fundType === 'special') return flow.source.includes('专项资金');
@@ -22,27 +20,37 @@ const FinancialFlowChart = ({ data }) => {
       return true;
     });
 
+    const levelMap = {
+      source: new Set(),
+      primary: new Set(),
+      secondary: new Set()
+    };
+
+    // 处理节点时添加层级前缀
     filteredFlows.forEach(flow => {
-      if (flow.source) levelMap.source.add(flow.source);
-      if (flow.primaryCategory) levelMap.primary.add(flow.primaryCategory);
-      if (flow.target) levelMap.secondary.add(flow.target);
+      if (flow.source) levelMap.source.add(processNodeId(flow.source, 'source'));
+      if (flow.primaryCategory) levelMap.primary.add(processNodeId(flow.primaryCategory, 'primary'));
+      if (flow.target) levelMap.secondary.add(processNodeId(flow.target, 'target'));
     });
 
     const nodes = [
       ...Array.from(levelMap.source).map(id => ({
         id,
         nodeColor: "hsl(210, 70%, 50%)",
-        category: 'source'
+        category: 'source',
+        label: id.split('_')[1]
       })),
       ...Array.from(levelMap.primary).map(id => ({
         id,
         nodeColor: "hsl(180, 70%, 50%)",
-        category: 'primary'
+        category: 'primary',
+        label: id.split('_')[1]
       })),
       ...Array.from(levelMap.secondary).map(id => ({
         id,
         nodeColor: "hsl(150, 70%, 50%)",
-        category: 'secondary'
+        category: 'secondary',
+        label: id.split('_')[1]
       }))
     ];
 
@@ -50,30 +58,36 @@ const FinancialFlowChart = ({ data }) => {
     filteredFlows.forEach(flow => {
       if (!flow.source || !flow.primaryCategory || !flow.target || !flow.amount) return;
 
+      const sourceId = processNodeId(flow.source, 'source');
+      const primaryId = processNodeId(flow.primaryCategory, 'primary');
+      const targetId = processNodeId(flow.target, 'target');
+
+      // 添加第一层链接
       const sourceToPrimary = links.find(link => 
-        link.source === flow.source && link.target === flow.primaryCategory
+        link.source === sourceId && link.target === primaryId
       );
       
       if (sourceToPrimary) {
         sourceToPrimary.value += parseFloat(flow.amount) || 0;
       } else {
         links.push({
-          source: flow.source,
-          target: flow.primaryCategory,
+          source: sourceId,
+          target: primaryId,
           value: parseFloat(flow.amount) || 0
         });
       }
 
-      const primaryToSecondary = links.find(link => 
-        link.source === flow.primaryCategory && link.target === flow.target
+      // 添加第二层链接
+      const primaryToTarget = links.find(link => 
+        link.source === primaryId && link.target === targetId
       );
       
-      if (primaryToSecondary) {
-        primaryToSecondary.value += parseFloat(flow.amount) || 0;
+      if (primaryToTarget) {
+        primaryToTarget.value += parseFloat(flow.amount) || 0;
       } else {
         links.push({
-          source: flow.primaryCategory,
-          target: flow.target,
+          source: primaryId,
+          target: targetId,
           value: parseFloat(flow.amount) || 0
         });
       }
@@ -82,6 +96,10 @@ const FinancialFlowChart = ({ data }) => {
     links.forEach(link => {
       link.value = parseFloat(link.value.toFixed(2));
     });
+
+    // 添加数据验证日志
+    console.log('Processed nodes:', nodes);
+    console.log('Processed links:', links);
 
     return { 
       nodes: nodes.filter(node => node.id), 
@@ -227,10 +245,10 @@ const FinancialFlowChart = ({ data }) => {
           labelPadding={16}
           animate={true}
           onClick={handleNodeClick}
-          label={node => `${node.id}\n(${node.value?.toFixed(2)}万元)`}
+          label={node => `${node.label}\n(${node.value?.toFixed(2)}万元)`}
           tooltip={({ node }) => (
             <div className="bg-white p-3 shadow-lg rounded-lg border">
-              <strong className="text-gray-900">{node.id}</strong>
+              <strong className="text-gray-900">{node.label}</strong>
               <div className="text-gray-600 mt-1">
                 金额：{node.value?.toFixed(2)} 万元
               </div>
